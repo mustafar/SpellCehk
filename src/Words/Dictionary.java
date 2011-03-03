@@ -7,18 +7,28 @@ import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-
+/**
+ * 
+ * @author Mustafa
+ * Dictionary Entity
+ * Structure -->	[1]	=> (a, i, ...)
+ * 					[2]	=> (is, of, ...)
+ * 					[3] => (fee, you, ...)
+ * 					......
+ * 					[n] => (...)
+ */
 public class Dictionary {
 	
-		Set<String> dict;
+		Map<Integer, Set<String>> dict;
 		Logger logger;
-		final String dictFile = "diction.ary";
 
 		/**
 		 * @param docs - List of document URLs
@@ -26,11 +36,11 @@ public class Dictionary {
 		 */
 		public Dictionary (List<URL> docs){
 			
-			logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+			logger = Logger.getLogger(Defaults.logBundle);
 			
 			dict = this.read();
 			if (dict == null)
-				dict = new HashSet<String>();
+				dict = new HashMap<Integer, Set<String>>();
 			
 			for (URL doc: docs){
 				this.teach(doc);
@@ -49,7 +59,7 @@ public class Dictionary {
 			
 			dict = this.read();
 			if (dict == null)
-				dict = new HashSet<String>();
+				dict = new HashMap<Integer, Set<String>>();
 			
 			this.teach(doc);
 			
@@ -65,7 +75,7 @@ public class Dictionary {
 			
 			dict = this.read();
 			if (dict == null)
-				dict = new HashSet<String>();
+				dict = new HashMap<Integer, Set<String>>();
 
 			logger.log(Level.FINE, "Dictionary Size: "+dict.size());
 		}
@@ -86,7 +96,14 @@ public class Dictionary {
 				while ((inputLine = in.readLine()) != null){
 					String[] words = inputLine.split(" ");
 					for (String word: words){
-						dict.add(word);
+						word = word.toLowerCase();
+						Integer len = word.length();
+						Set<String> sizeBasedDict = dict.get(len);
+						if (sizeBasedDict == null){
+							sizeBasedDict = new HashSet<String>();
+							dict.put(len, sizeBasedDict);
+						}
+						sizeBasedDict.add(word);
 					}
 				}
 				
@@ -107,7 +124,23 @@ public class Dictionary {
 		 * teach - learn a single word
 		 */
 		public void teach (String word) {
-			dict.add(word);
+			word = word.toLowerCase();
+			Integer len = word.length();
+			Set<String> sizeBasedDict = dict.get(len);
+			if (sizeBasedDict == null){
+				sizeBasedDict = new HashSet<String>();
+				dict.put(len, sizeBasedDict);
+			}
+			sizeBasedDict.add(word);
+		}
+		
+		
+		/**
+		 * @param len - required length of returned words
+		 * @return - set of all words of length=len
+		 */
+		public Set<String> getWordsOfLength(Integer len){
+			return dict.get(len);
 		}
 		
 		/**
@@ -116,15 +149,15 @@ public class Dictionary {
 		public void save(){
 			
 			try{
-				FileOutputStream fout = new FileOutputStream(this.dictFile);
+				FileOutputStream fout = new FileOutputStream(Defaults.dictFile);
 			    ObjectOutputStream oos = new ObjectOutputStream(fout);
 			    oos.writeObject(this.dict);
 			    oos.close();				
 			} catch (Exception e){
-				logger.log(Level.WARNING, "Cannot save dictionary: \""+this.dictFile+"\"");
+				logger.log(Level.WARNING, "Cannot save dictionary: \""+Defaults.dictFile+"\"");
 			}
 			
-			logger.log(Level.INFO, "Saved to dictinary: \""+this.dictFile+"\"");
+			logger.log(Level.INFO, "Saved to dictinary: \""+Defaults.dictFile+"\"");
 	
 		}
 		
@@ -132,19 +165,19 @@ public class Dictionary {
 		 * Open dictionary file and copy to dict object
 		 */
 		@SuppressWarnings("unchecked")
-		private Set<String> read(){
-			Set<String> readDict = null;
+		private Map<Integer, Set<String>> read(){
+			Map<Integer, Set<String>> readDict = null;
 			try{
-			    FileInputStream fin = new FileInputStream(this.dictFile);
+			    FileInputStream fin = new FileInputStream(Defaults.dictFile);
 			    ObjectInputStream ois = new ObjectInputStream(fin);
-			    readDict = (Set<String>) ois.readObject();
+			    readDict = (Map<Integer, Set<String>>) ois.readObject();
 			    ois.close();
 			} catch (Exception e){
-				logger.log(Level.WARNING, "Cannot read dictionary: \""+this.dictFile+"\"");
+				logger.log(Level.WARNING, "Cannot read dictionary: \""+Defaults.dictFile+"\"");
 				return null;
 			}
 			
-			logger.log(Level.INFO, "Opened saved dictinary: \""+this.dictFile+"\"");
+			logger.log(Level.INFO, "Opened saved dictinary: \""+Defaults.dictFile+"\"");
 			return readDict;
 		}
 }
