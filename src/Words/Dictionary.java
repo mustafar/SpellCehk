@@ -137,10 +137,24 @@ public class Dictionary {
 		
 		/**
 		 * @param len - required length of returned words
-		 * @return - set of all words of length=len
+		 * @return set of all words of length=len
 		 */
 		public Set<String> getWordsOfLength(Integer len){
 			return dict.get(len);
+		}
+		
+		/**
+		 * @return full dictionary
+		 */
+		public Map<Integer, Set<String>> getFullDictionary(){
+			return dict;
+		}
+		
+		/**
+		 * @return set of distinct lengths of saved words
+		 */
+		public Set<Integer> getWordLengthSet(){
+			return dict.keySet();
 		}
 		
 		/**
