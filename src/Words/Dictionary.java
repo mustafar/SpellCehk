@@ -8,26 +8,27 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 
  * @author Mustafa
  * Dictionary Entity
- * Structure -->	[1]	=> (a, i, ...)
- * 					[2]	=> (is, of, ...)
- * 					[3] => (fee, you, ...)
+ * Structure -->	[1]	=> (a->500, i->300, ...)
+ * 					[2]	=> (is->250, of->250, ...)
+ * 					[3] => (fee->20, you->50, ...)
  * 					......
  * 					[n] => (...)
  */
 public class Dictionary {
 	
-		Map<Integer, Set<String>> dict;
+		Map<Integer, Map<String, Integer>> dict;
 		Logger logger;
 
 		/**
@@ -40,7 +41,7 @@ public class Dictionary {
 			
 			dict = this.read();
 			if (dict == null)
-				dict = new HashMap<Integer, Set<String>>();
+				dict = new HashMap<Integer, Map<String, Integer>>();
 			
 			for (URL doc: docs){
 				this.teach(doc);
@@ -59,7 +60,7 @@ public class Dictionary {
 			
 			dict = this.read();
 			if (dict == null)
-				dict = new HashMap<Integer, Set<String>>();
+				dict = new HashMap<Integer, Map<String, Integer>>();
 			
 			this.teach(doc);
 			
@@ -75,7 +76,7 @@ public class Dictionary {
 			
 			dict = this.read();
 			if (dict == null)
-				dict = new HashMap<Integer, Set<String>>();
+				dict = new HashMap<Integer, Map<String, Integer>>();
 
 			logger.log(Level.FINE, "Dictionary Size: "+dict.size());
 		}
@@ -88,6 +89,9 @@ public class Dictionary {
 						
 			BufferedReader in;
 			String inputLine;
+			Pattern wordPattern = Pattern.compile("[^a-z]*([a-z]+[^a-z]*[a-z]+)[^a-z]*");
+			Matcher wordMatcher;
+			
 			try {
 				in = new BufferedReader(
 							new InputStreamReader(
@@ -95,16 +99,38 @@ public class Dictionary {
 				
 				while ((inputLine = in.readLine()) != null){
 					String[] words = inputLine.split(" ");
-					for (String word: words){
-						word = word.toLowerCase();
+					for (String tmpWord: words){
+						tmpWord = tmpWord.toLowerCase();
+						String word = "";
+						
+						wordMatcher = wordPattern.matcher(tmpWord);
+						if (wordMatcher.find()){
+							word = wordMatcher.group(1);
+						} else {
+							if (tmpWord.length()==1 && tmpWord!=" "){
+								word = tmpWord;
+							}
+						}
+						
+						if (word == ""){
+							continue;
+						}
+						
+
 						Integer len = word.length();
-						Set<String> sizeBasedDict = dict.get(len);
-						if (sizeBasedDict == null){
-							sizeBasedDict = new HashSet<String>();
+						Map<String, Integer> sizeBasedDict = dict.get(len);
+						if (sizeBasedDict == null) {
+							sizeBasedDict = new HashMap<String, Integer> ();
 							dict.put(len, sizeBasedDict);
 						}
-						sizeBasedDict.add(word);
+						if (sizeBasedDict.containsKey(word)){
+							Integer count = sizeBasedDict.get(word);
+							sizeBasedDict.put(word, count+1);
+						} else {
+							sizeBasedDict.put(word, 1);
+						}
 					}
+					
 				}
 				
 				in.close();
@@ -126,12 +152,18 @@ public class Dictionary {
 		public void teach (String word) {
 			word = word.toLowerCase();
 			Integer len = word.length();
-			Set<String> sizeBasedDict = dict.get(len);
+			Map<String, Integer> sizeBasedDict = dict.get(len);
 			if (sizeBasedDict == null){
-				sizeBasedDict = new HashSet<String>();
+				sizeBasedDict = new HashMap<String, Integer>();
 				dict.put(len, sizeBasedDict);
 			}
-			sizeBasedDict.add(word);
+			if (sizeBasedDict.containsKey(word)){
+				Integer count = sizeBasedDict.get(word);
+				sizeBasedDict.put(word, count+1);
+			} else {
+				sizeBasedDict.put(word, 1);
+			}
+
 		}
 		
 		
@@ -139,14 +171,14 @@ public class Dictionary {
 		 * @param len - required length of returned words
 		 * @return set of all words of length=len
 		 */
-		public Set<String> getWordsOfLength(Integer len){
+		public Map<String, Integer> getWordsOfLength(Integer len){
 			return dict.get(len);
 		}
 		
 		/**
 		 * @return full dictionary
 		 */
-		public Map<Integer, Set<String>> getFullDictionary(){
+		public Map<Integer, Map<String, Integer>> getFullDictionary(){
 			return dict;
 		}
 		
@@ -155,6 +187,15 @@ public class Dictionary {
 		 */
 		public Set<Integer> getWordLengthSet(){
 			return dict.keySet();
+		}
+		
+		/**
+		 * 
+		 * @param word - word to search
+		 * @return frequency of the supplied word
+		 */
+		public Integer getWordFrequency (String word){			
+			return dict.get(word.length()).get(word);
 		}
 		
 		/**
@@ -179,19 +220,20 @@ public class Dictionary {
 		 * Open dictionary file and copy to dict object
 		 */
 		@SuppressWarnings("unchecked")
-		private Map<Integer, Set<String>> read(){
-			Map<Integer, Set<String>> readDict = null;
+		private Map<Integer, Map<String, Integer>> read(){
+			Map<Integer, Map<String, Integer>> readDict = null;
 			try{
 			    FileInputStream fin = new FileInputStream(Defaults.dictFile);
 			    ObjectInputStream ois = new ObjectInputStream(fin);
-			    readDict = (Map<Integer, Set<String>>) ois.readObject();
+			    readDict = (Map<Integer, Map<String, Integer>>) ois.readObject();
 			    ois.close();
 			} catch (Exception e){
-				logger.log(Level.WARNING, "Cannot read dictionary: \""+Defaults.dictFile+"\"");
+				logger.log(Level.INFO, "Cannot read dictionary: \""+Defaults.dictFile+"\"");
 				return null;
 			}
 			
 			logger.log(Level.INFO, "Opened saved dictinary: \""+Defaults.dictFile+"\"");
 			return readDict;
 		}
+		
 }

@@ -1,10 +1,8 @@
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.List;
-import java.util.Set;
 
 import Words.Dictionary;
 import Words.SpellChecker;
@@ -24,6 +22,7 @@ public class Sample {
 		// TODO Auto-generated method stub
 
 		URL u = new URL("http://people.sc.fsu.edu/~jburkardt/data/txt/dictionary.txt");
+		URL u1 = new URL("http://norvig.com/big.txt");
 		Dictionary d = new Dictionary(); //"http://people.sc.fsu.edu/~jburkardt/data/txt/dictionary.txt"
 		d.teach("hello");
 		//d.save();

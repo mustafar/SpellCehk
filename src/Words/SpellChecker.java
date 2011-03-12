@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 
@@ -39,30 +40,33 @@ public class SpellChecker {
 	public List<String> check (String word){
 		
 		Integer len = word.length();
-		Set<String> initSet = dict.getWordsOfLength(len);
+		Map<String, Integer> initSet = dict.getWordsOfLength(len);
 		List<String> matches = new ArrayList<String>();
 		Boolean isListSorted = false;
 		
 		// if exact match found, just return it
-		if (initSet.contains(word)){
+		if (initSet.containsKey(word)){
 			matches.add(word);
+			logger.log(Level.FINE, "Exact Match found: "+word);
 			return matches;
 		}
 		
 		// add different length word sets
 		// as per Defaults.matchOnlyExactLength flag
 		List<String> wordList = new ArrayList<String>();
-		wordList.addAll(initSet);
+		wordList.addAll(initSet.keySet());
 		if (!Defaults.matchOnlyExactLength){
 			
 			// Apply RULE-WS
 			// RULE-WS: the difference in length with the
 			// word you are looking for is never more than 1
 			if (Defaults.useRuleWS){
+				logger.log(Level.FINE, "Applying rule: RULE-WS. Searching for: "+word);
+				
 				if (len > 1){
-					wordList.addAll(dict.getWordsOfLength(len-1));
+					wordList.addAll(dict.getWordsOfLength(len-1).keySet());
 				}
-				wordList.addAll(dict.getWordsOfLength(len+1));
+				wordList.addAll(dict.getWordsOfLength(len+1).keySet());
 				
 			} else {
 			    Set<Integer> keySet = dict.getWordLengthSet();
@@ -70,7 +74,7 @@ public class SpellChecker {
 			    	if (i==len){
 			    		continue;
 			    	}
-			    	wordList.addAll(dict.getWordsOfLength(len));
+			    	wordList.addAll(dict.getWordsOfLength(len).keySet());
 			    }
 			}
 			
@@ -80,6 +84,7 @@ public class SpellChecker {
 		// Apply RULE-FL: you don't misspell a word by typing
 		// the first letter wrong 
 		if (Defaults.useRuleFL) {
+			logger.log(Level.FINE, "Applying rule: RULE-FL. Searching for: "+word);
 			
 			// sort list to facilitate binary search
 			Collections.sort(wordList);
@@ -111,50 +116,72 @@ public class SpellChecker {
 			}
 			
 			if (ldMatches.size() < Defaults.resultSize){
-				ldMatches.put(possibleMatch, thisScore);
+				logger.log(Level.FINE, "Accepted: "+possibleMatch+". Searching for: "+word);				
+				ldMatches.put(possibleMatch, thisScore.intValue());
 			} else {
 				Set<String> keyWords = ldMatches.keySet();
 				Set<String> toEvict = new HashSet<String>();
+
 				for (String currWord: keyWords){
 					Integer currScore = ldMatches.get(currWord);
-					if (thisScore < currScore){ //evict someone
+					
+					//get all possible evictees
+					if (thisScore < currScore){ 
 						toEvict.add(currWord);
-						break;
 					}
 				}
-				if (toEvict.size() > 0){
-					ldMatches.put(possibleMatch, thisScore);
+				
+				//choose best evictee (based on word frequency)
+				Integer leastFreq = Integer.MAX_VALUE;
+				String evictThisWord = "";
+				for (String currWord: toEvict){
+					Integer currFreq = dict.getWordFrequency(currWord);
+					if (currFreq < leastFreq){
+						leastFreq = currFreq;
+						evictThisWord = currWord;
+					}
 				}
-				for (String evictThisWord: toEvict){
+					
+				if (toEvict.size() > 0){
+					logger.log(Level.FINE, "Accepted: "+possibleMatch+". Searching for: "+word);	
+					logger.log(Level.FINE, "Evicted: "+evictThisWord+". Searching for: "+word);	
+					ldMatches.put(possibleMatch, thisScore.intValue());
 					ldMatches.remove(evictThisWord);
 				}
+
 			}
 						
 			// check if we have good enough results
-			if (ldMatches.values().size()==1 && ldMatches.values().contains((Integer)1)){
-				break;
-			}
+			//if (ldMatches.values().size()==1 && ldMatches.values().contains((Integer)1)){
+			//	break;
+			//}
 
 		}
+		
 		Set<String>matchedWords = ldMatches.keySet();
 		List<String>sortedMatchedWordsTmp = new ArrayList<String>();
 		List<String>sortedMatchedWords = new ArrayList<String>();
 		for (String matchedWord: matchedWords){
-			String tmp = new String (ldMatches.get(matchedWord)+":"+matchedWord);
+			Integer currLDScore = ldMatches.get(matchedWord);
+			Integer currFreq = dict.getWordFrequency(matchedWord);
+			Integer scoreStr = (int) (((10-currLDScore)*Math.pow(10, 8)) + currFreq);
+			String tmp = new String (scoreStr+":"+matchedWord);
 			sortedMatchedWordsTmp.add(tmp);
 		}
 		
-		Collections.sort(sortedMatchedWordsTmp);
+		Collections.sort(sortedMatchedWordsTmp, Collections.reverseOrder());	
+		
 		for (String matchedWord: sortedMatchedWordsTmp){
 			String tmpArr[] = matchedWord.split(":");
 			sortedMatchedWords.add(tmpArr[1]);
 		}
 
-		matches.addAll(sortedMatchedWordsTmp);
+		matches.addAll(sortedMatchedWords);
 		
 		
 		return matches;
 	}
+
 	
 	/**
 	 * @param list - sorted list of words for search
