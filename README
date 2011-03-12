@@ -1,3 +1,7 @@
-Hello World!
+SpellCehk
+=========
+A Java spell checker
 
--- work in progress
+Please read 
+- Sample.java file for usage examples
+- Defaults.java for configurable parameters
